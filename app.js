@@ -20,18 +20,52 @@ app.set("views", path.join(__dirname, "views")); // Set the views directory
 
 // Set partials folder
 var hbs = require("hbs");
+const { cronAuth } = require('./middleware/auth.middleware');
 hbs.registerPartials(__dirname + "/views/partials", function (err) {});
 
-// Get ENDPOINTS
-app.get('/db-status', async (req, res) => {
-  const db = mongoose.connection;
-  console.log(db.readyState);
-  if (db.readyState === 1) {
-    res.status(200).send('Database is connected');
-  } else {
-    res.status(500).send('Database is not connected');
+// Database status endpoint
+app.get('/api/status', async (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const states = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting',
+  };
+  res.json({
+    status: 'success',
+    message: `Server is running`,
+    data: {
+      database: states[dbState] || 'unknown',
+      uptime: process.uptime(),
+    },
+  });
+});
+
+// ─── MongoDB Connection CronJob ─────────────────────────────────────────────────────
+
+app.get("/api/db-heartbeat", cronAuth, async (req, res) => {
+  try {
+    await mongoose.connection.db
+      .collection("heartbeat")
+      .updateOne(
+        { _id: "heartbeat" },
+        { $set: { lastRun: new Date() } },
+        { upsert: true }
+      );
+
+    res.json({
+      success: true,
+      message: "Heartbeat updated"
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
   }
 });
+
 
 app.get("/", (req, res) => {
   res.status(200).render("index");
