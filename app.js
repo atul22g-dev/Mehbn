@@ -25,6 +25,7 @@ hbs.registerPartials(__dirname + "/views/partials", function (err) {});
 
 // Database status endpoint
 app.get('/api/status', async (req, res) => {
+  await connectDB();
   const dbState = mongoose.connection.readyState;
   const states = {
     0: 'disconnected',

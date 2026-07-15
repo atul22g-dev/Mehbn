@@ -1,55 +1,22 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
-mongoose.set("strictQuery", true);
+const DB_URI = process.env.DATABASE;
 
-const MONGODB_URI = process.env.DATABASE;
-
-if (!MONGODB_URI) {
-  console.error("❌ DATABASE environment variable is not set on Vercel");
-}
-
-/**
- * Global cache for serverless function warm starts.
- * On Vercel, global variables persist across warm invocations
- * but reset on cold starts. This prevents reconnecting on every request.
- */
-let cached = global._mongooseConnection;
-
-if (!cached) {
-  cached = global._mongooseConnection = { conn: null, promise: null };
-}
-
-/**
- * Returns a cached MongoDB connection, or establishes a new one.
- * - On warm invocations: returns the existing connection immediately
- * - On cold start: initiates a connection and caches it
- * - On failure: resets the cache so the next call retries
- */
-async function connectDB() {
-  if (cached.conn) {
-    return cached.conn;
+const connectDB = async () => {
+  if (!DB_URI) {
+    console.error('MongoDB connection string (DB) is not set in environment variables');
+    process.exit(1);
   }
 
-  if (!cached.promise) {
-    cached.promise = mongoose
-      .connect(MONGODB_URI, {
-        bufferCommands: false,
-      })
-      .then((mongooseInstance) => {
-        console.log(
-          `✅ MongoDB connected: ${mongooseInstance.connection.host}`
-        );
-        cached.conn = mongooseInstance;
-        return mongooseInstance;
-      })
-      .catch((err) => {
-        console.error(`❌ MongoDB connection error: ${err.message}`);
-        cached.promise = null; // Reset so the next call retries
-        throw err;
-      });
+  try {
+    const conn = await mongoose.connect(DB_URI);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    return conn;
+  } catch (err) {
+    console.error('Failed to connect to MongoDB', err);
+    process.exit(1);
   }
-
-  return cached.promise;
-}
+};
 
 module.exports = connectDB;
+module.exports.DB_URI = DB_URI;
