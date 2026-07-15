@@ -46,6 +46,15 @@ app.get('/api/status', async (req, res) => {
 
 app.get("/api/db-heartbeat", cronAuth, async (req, res) => {
   try {
+    // Check if MongoDB connection is ready before accessing it
+    if (mongoose.connection.readyState !== 1 || !mongoose.connection.db) {
+      return res.status(503).json({
+        success: false,
+        error: "Database not connected",
+        readyState: mongoose.connection.readyState
+      });
+    }
+
     await mongoose.connection.db
       .collection("heartbeat")
       .updateOne(
@@ -61,7 +70,8 @@ app.get("/api/db-heartbeat", cronAuth, async (req, res) => {
   } catch (err) {
     res.status(500).json({
       success: false,
-      error: err.message
+      error: "Heartbeat not updated",
+      messages: err.message
     });
   }
 });
