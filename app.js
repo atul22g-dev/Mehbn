@@ -6,8 +6,8 @@ const mongoose = require("mongoose");
 
 const PORT = process.env.PORT || 3000;
 
-// Database Connection
-require("./Database/db_conn");
+// Database Connection (serverless-ready with global caching)
+const connectDB = require("./Database/db_conn");
 const Contact = require('./model/Contact');
 
 // Set static folder
@@ -46,14 +46,8 @@ app.get('/api/status', async (req, res) => {
 
 app.get("/api/db-heartbeat", cronAuth, async (req, res) => {
   try {
-    // Check if MongoDB connection is ready before accessing it
-    if (mongoose.connection.readyState !== 1 || !mongoose.connection.db) {
-      return res.status(503).json({
-        success: false,
-        error: "Database not connected",
-        readyState: mongoose.connection.readyState
-      });
-    }
+    // Ensure MongoDB connection is established (uses global cache on warm starts)
+    await connectDB();
 
     await mongoose.connection.db
       .collection("heartbeat")
